@@ -65,7 +65,6 @@ async function handleVoice(request, env) {
   }
 
   return jsonResponse({
-    transcript,
     answer: gptJson?.answer ?? "",
     questions: Array.isArray(gptJson?.questions) ? gptJson.questions : []
   });

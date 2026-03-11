@@ -2,7 +2,7 @@ export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
       return jsonResponse({}, 200);
-    }
+    } 
 
     const appKey = request.headers.get("X-APP-KEY");
     if (appKey !== env.APP_KEY) {

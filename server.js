@@ -5,9 +5,9 @@ export default {
     } 
 
     const appKey = request.headers.get("X-APP-KEY");
-    if (appKey !== env.APP_KEY) {
-      return jsonResponse({ error: "Unauthorized" }, 402);
-    }
+    //if (appKey !== env.APP_KEY) {
+      //return jsonResponse({ error: "Unauthorized" }, 402);
+    //}
 
     try {
       const url = new URL(request.url);

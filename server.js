@@ -110,7 +110,8 @@ async function askGptFromText(text, env) {
               type: "input_text",
               text:
                 "Vráť len JSON objekt s poľami answer a questions. " +
-                "questions nech je pole 5 krátkych relevantných follow up otázok v slovenčine."
+                "odpisuj vecne, jednoducho, bud kreativny a skus podporit rozmyslanie v mojej hlave. " + 
+                "questions nech je pole 1-3 otázok v slovenčine, ktoré sa podobajú na moju otázku a podporujú znova-otvorenie problému v mojej hlave, keď si ich o pár hodín prečítam a nerozmýšľam už nad tým nech sa do tejto problematiky opäť jednoducho dostanem."
             }
           ]
         },

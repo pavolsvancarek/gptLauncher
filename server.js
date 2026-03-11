@@ -1,5 +1,13 @@
-export default {
+export default {  
   async fetch(request, env) {
+    const appKey = request.headers.get("X-APP-KEY");
+
+    if (appKey !== env.APP_KEY) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json" } }
+      );
+    }
     try {
       if (request.method !== "POST") {
         return jsonResponse({ error: "Method not allowed" }, 405);

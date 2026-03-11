@@ -1,7 +1,10 @@
 export default {  
   async fetch(request, env) {
+    if (request.method === "OPTIONS") {
+      return jsonResponse({}, 200);
+    }
+    
     const appKey = request.headers.get("X-APP-KEY");
-
     if (appKey !== env.APP_KEY) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
@@ -115,7 +118,7 @@ function jsonResponse(data, status = 200) {
       "Content-Type": "application/json; charset=utf-8",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
+      "Access-Control-Allow-Headers": "Content-Type, X-APP-KEY"
     }
   });
 }

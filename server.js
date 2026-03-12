@@ -108,12 +108,9 @@ async function askGptFromText(text, env) {
           content: [
             {
               type: "input_text",
-              text:
-                "Vráť odpoveď ako JSON s poľami answer a questions. ",
-                "answer:",
-                "stručná, vecná odpoveď v slovenčine ktorá pomáha pochopiť problém a podporí premýšľanie.",
-                "questions:",
-                "pole 1 až 5 kratších otázok v slovenčine ktoré súvisia s mojou otázkou a pomôžu mi sa k tejto téme znova vrátiť keď si ich neskôr prečítam."
+              text: "Vráť odpoveď ako JSON s poľami answer a questions. " +
+                    "answer: stručná, vecná odpoveď v slovenčine, ktorá pomáha pochopiť problém a podporí premýšľanie. " +
+                    "questions: pole 1 až 5 kratších otázok v slovenčine, ktoré súvisia s mojou otázkou a pomôžu mi sa k tejto téme znova vrátiť, keď si ich neskôr prečítam."
             }
           ]
         },

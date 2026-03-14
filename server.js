@@ -43,7 +43,10 @@ async function handleAsk(request, env) {
 async function handleVoice(request, env) {
   const formData = await request.formData();
   const file = formData.get("file");
-
+  if (file.size > 0.01 * 1024 * 1024) {
+    return jsonResponse({ error: "Audio file too large" }, 413);
+  }
+  
   if (!file || typeof file === "string") {
     return jsonResponse({ error: "Missing audio file", type: "validation_error" }, 400);
   }
@@ -54,6 +57,12 @@ async function handleVoice(request, env) {
 
   try {
     const transcript = await transcribeAudio(file, env);
+    
+    if (!transcript.trim()) {
+      return jsonResponse({ error: "Empty transcript" }, 400);
+    }
+    
+    const safeTranscript = transcript.slice(0, 10000);
 
     if (!transcript.trim()) {
       return jsonResponse({ error: "Empty transcript", type: "transcription_error" }, 400);

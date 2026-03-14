@@ -43,7 +43,7 @@ async function handleAsk(request, env) {
 async function handleVoice(request, env) {
   const formData = await request.formData();
   const file = formData.get("file");
-  if (file.size > 0.01 * 1024 * 1024) {
+  if (file.size > 10 * 1024 * 1024) {
     return jsonResponse({ error: "Audio file too large" }, 413);
   }
   

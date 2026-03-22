@@ -58,17 +58,13 @@ async function handleVoice(request, env) {
   try {
     const transcript = await transcribeAudio(file, env);
     
-    if (!transcript.trim()) {
-      return jsonResponse({ error: "Empty transcript" }, 400);
-    }
-    
-    const safeTranscript = transcript.slice(0, 10000);
+if (!transcript.trim()) {
+  return jsonResponse({ error: "Empty transcript", type: "transcription_error" }, 400);
+}
 
-    if (!transcript.trim()) {
-      return jsonResponse({ error: "Empty transcript", type: "transcription_error" }, 400);
-    }
+const safeTranscript = transcript.slice(0, 10000);
 
-    return await askGptFromText(transcript, env);
+  return await askGptFromText(safeTranscript, env);
   } catch (e) {
     return jsonResponse({
       error: e?.message || "Voice processing failed",
@@ -122,9 +118,8 @@ async function askGptFromText(text, env) {
               {
                 type: "input_text",
                 text:
-                  "Vráť odpoveď ako JSON s poľami answer a questions. " +
-                  "answer je stručná, vecná odpoveď v slovenčine. " +
-                  "questions je pole 1 až 5 krátkych otázok v slovenčine."
+                  "Z textu vytvor JEDNU krátku otázku v slovenčine, ktorá vystihuje hlavnú myšlienku. " +
+                  "Max 30 znakov. Bez vysvetlenia. Len otázka. Vráť JSON {question}."        
               }
             ]
           },
@@ -146,15 +141,12 @@ async function askGptFromText(text, env) {
               type: "object",
               additionalProperties: false,
               properties: {
-                answer: { type: "string" },
-                questions: {
-                  type: "array",
-                  minItems: 1,
-                  maxItems: 5,
-                  items: { type: "string" }
+                question: {
+                  type: "string",
+                  maxLength: 30
                 }
               },
-              required: ["answer", "questions"]
+              required: ["question"]
             }
           }
         }
@@ -175,17 +167,24 @@ async function askGptFromText(text, env) {
 
   const parsed = extractStructuredJson(data);
 
-  if (!parsed.answer || !Array.isArray(parsed.questions)) {
+if (!parsed.question || typeof parsed.question !== "string") {
     return jsonResponse({
       error: "Invalid model output",
       type: "parse_error",
       raw: data
     }, 502);
   }
+  let q = parsed.question.trim().slice(0, 30);
 
+  if (!q) {
+    q = text.trim().slice(0, 30);
+  }
+  
+  if (!q.endsWith("?")) {
+    q += "?";
+  }
   return jsonResponse({
-    answer: parsed.answer,
-    questions: parsed.questions
+    questions: [q]
   });
 }
 
@@ -212,7 +211,7 @@ function extractStructuredJson(data) {
     }
   }
 
-  return { answer: "", questions: [] };
+  return { question: "" };
 }
 
 async function safeJson(response) {

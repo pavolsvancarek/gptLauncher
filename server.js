@@ -64,7 +64,16 @@ if (!transcript.trim()) {
 
 const safeTranscript = transcript.slice(0, 10000);
 
-  return await askGptFromText(safeTranscript, env);
+  const gptResponse = await askGptFromText(safeTranscript, env);
+
+  // parse Response -> JSON
+  const data = await gptResponse.json();
+  
+  // pridaj transcript
+  return jsonResponse({
+    questions: data.questions,
+    transcript: safeTranscript
+  });
   } catch (e) {
     return jsonResponse({
       error: e?.message || "Voice processing failed",

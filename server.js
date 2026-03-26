@@ -66,6 +66,9 @@ const safeTranscript = transcript.slice(0, 10000);
 
   const gptResponse = await askGptFromText(safeTranscript, env);
 
+  if (!gptResponse.ok) {
+    return gptResponse;
+  }  
   // parse Response -> JSON
   const data = await gptResponse.json();
   

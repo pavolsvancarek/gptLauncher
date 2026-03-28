@@ -130,8 +130,12 @@ async function askGptFromText(text, env) {
               {
                 type: "input_text",
                 text:
-                  "Z textu vytvor JEDNU krátku otázku v slovenčine, ktorá vystihuje hlavnú myšlienku. " +
-                  "Max 120 znakov. Bez vysvetlenia. Len otázka. Vráť JSON {question}."        
+                  "Z textu vytvor JEDNU krátku vetu v slovenčine, ktorá vystihuje hlavnú myšlienku. " +
+                  "Ak text už je krátky a dáva zmysel, ponechaj ho takmer nezmenený. " +
+                  "Ak text znie ako otázka, ponechaj otázku. " +
+                  "Ak text znie ako poznámka alebo myšlienka, ponechaj ju ako vetu (nie otázku). " +
+                  "Max 120 znakov len ak je text dlhý. " +
+                  "Bez vysvetlenia. Vráť JSON {text}."      
               }
             ]
           },
@@ -192,9 +196,6 @@ if (!parsed.question || typeof parsed.question !== "string") {
     q = text.trim().slice(0, 120);
   }
   
-  if (!q.endsWith("?")) {
-    q += "?";
-  }
   return jsonResponse({
     questions: [q]
   });

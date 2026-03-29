@@ -135,7 +135,7 @@ async function askGptFromText(text, env) {
                   "Ak text znie ako otázka, ponechaj otázku. " +
                   "Ak text znie ako poznámka alebo myšlienka, ponechaj ju ako vetu (nie otázku). " +
                   "Max 120 znakov len ak je text dlhý. " +
-                  "Bez vysvetlenia. Vráť JSON {text}."      
+                  "Bez vysvetlenia. Vráť JSON {question}."      
               }
             ]
           },

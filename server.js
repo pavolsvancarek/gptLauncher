@@ -7,16 +7,17 @@ export default {
     try {
       const url = new URL(request.url);
 
-      if (request.method !== "POST") {
-        return jsonResponse({ error: "Method not allowed" }, 405);
-      }
-
-      if (url.pathname === "/ask") {
+      if (url.pathname === "/ask" && request.method === "POST") {
         return await handleAsk(request, env);
       }
-
-      if (url.pathname === "/voice") {
+      
+      if (url.pathname === "/voice" && request.method === "POST") {
         return await handleVoice(request, env);
+      }
+      
+      if (url.pathname.startsWith("/ig/") && request.method === "GET") {
+        const username = url.pathname.split("/ig/")[1];
+        return await handleInstagram(username);
       }
 
       return jsonResponse({ error: "Not found" }, 404);
@@ -28,6 +29,83 @@ export default {
     }
   }
 };
+
+const igCache = new Map();
+async function handleInstagram(username) {
+  if (!username) {
+    return jsonResponse({ error: "Missing username" }, 400);
+  }
+
+  const cached = igCache.get(username);
+  if (cached && Date.now() - cached.time < 600000) {
+    return jsonResponse(cached.data);
+  }
+
+  try {
+    const res = await fetch(`https://www.instagram.com/${username}/`, {
+      headers: {
+        "User-Agent": getRandomUA(),
+        "Accept": "text/html",
+        "Accept-Language": "en-US,en;q=0.9"
+      }
+    });
+
+    const html = await res.text();
+
+    // 🔍 hlavný regex (funguje najčastejšie)
+    let match = html.match(/"edge_followed_by":{"count":(\d+)}/);
+    
+    if (!match) {
+      match = html.match(/"followers":\s?(\d+)/);
+    }
+    
+    // 🔥 nový fallback (dôležitý)
+    if (!match) {
+      const jsonMatch = html.match(/<script type="application\/json">(.+?)<\/script>/);
+      
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          const json = JSON.parse(jsonMatch[1]);
+          const followers = json?.entry_data?.ProfilePage?.[0]?.graphql?.user?.edge_followed_by?.count;
+          
+          if (followers) {
+            match = [null, followers];
+          }
+        } catch {}
+      }
+    }
+
+    if (!match || !match[1]) {
+      return jsonResponse({
+        error: "Followers not found"
+      }, 500);
+    }
+
+    const followers = parseInt(String(match[1]).replace(/\D/g, ""));
+
+    const result = {
+      username,
+      followers,
+      source: "html"
+    };
+
+    igCache.set(username, {
+      data: result,
+      time: Date.now()
+    });
+
+    return jsonResponse(result);
+
+  } catch (e) {
+    return jsonResponse({
+      error: e.message || "IG scrape error"
+    }, 500);
+  }
+}
+
+function getRandomUA() {
+  return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+}
 
 async function handleAsk(request, env) {
   const body = await request.json().catch(() => null);

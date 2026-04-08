@@ -127,7 +127,8 @@ async function getIGStats(env) {
     const profile = await fetch(
       `https://graph.facebook.com/v19.0/${IG_ID}?fields=followers_count&access_token=${TOKEN}`
     ).then(r => r.json());
-    
+      console.log("Profile:", JSON.stringify(profile, null, 2));
+
     if (profile.error) {
       throw new Error(profile.error.message);
     }

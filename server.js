@@ -135,9 +135,8 @@ async function getIGStats(env) {
     const media = await fetch(
       `https://graph.facebook.com/v19.0/${IG_ID}/media?fields=id,media_type&limit=1&access_token=${TOKEN}`
     ).then(r => r.json());
-    
-    if (media.error) throw new Error(media.error.message);
     console.log("IG media:", JSON.stringify(media, null, 2));
+    if (media.error) throw new Error(media.error.message);
     
     const mediaId = media.data?.[0]?.id;
     const mediaType = media.data?.[0]?.media_type;

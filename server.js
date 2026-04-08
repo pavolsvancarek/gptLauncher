@@ -137,6 +137,7 @@ async function getIGStats(env) {
     ).then(r => r.json());
     
     if (media.error) throw new Error(media.error.message);
+    console.log("IG media:", JSON.stringify(media, null, 2));
     
     const mediaId = media.data?.[0]?.id;
     const mediaType = media.data?.[0]?.media_type;
@@ -149,7 +150,7 @@ async function getIGStats(env) {
       `https://graph.facebook.com/v19.0/${mediaId}?fields=like_count&access_token=${TOKEN}`
     ).then(r => r.json());
     if (likesRes.error) throw new Error(likesRes.error.message);
-
+    console.log("IG likes:", JSON.stringify(likesRes, null, 2));
     let views = null;
 
     // 4. views (len video/reel)
@@ -158,7 +159,7 @@ async function getIGStats(env) {
         const viewsRes = await fetch(
           `https://graph.facebook.com/v19.0/${mediaId}/insights?metric=plays&access_token=${TOKEN}`
         ).then(r => r.json());
-
+        console.log("IG views:", JSON.stringify(viewsRes, null, 2));
         views = viewsRes.data?.[0]?.values?.[0]?.value ?? null;
       } catch {}
     }
@@ -168,7 +169,7 @@ async function getIGStats(env) {
       `https://graph.facebook.com/v19.0/${IG_ID}/insights?metric=reach&period=day&access_token=${TOKEN}`
     ).then(r => r.json());
     if (reachRes.error) throw new Error(reachRes.error.message);
-
+    console.log("IG reach:", JSON.stringify(reachRes, null, 2));
     const values = reachRes.data?.[0]?.values || [];
         
     const todayUTC = new Date().toISOString().slice(0, 10);

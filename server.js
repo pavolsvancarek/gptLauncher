@@ -15,9 +15,8 @@ export default {
         return await handleVoice(request, env);
       }
       
-      if (url.pathname.startsWith("/ig/") && request.method === "GET") {
-        const username = url.pathname.split("/ig/")[1];
-        return await handleInstagram(username);
+      if (url.pathname === "/stats" && request.method === "GET") {
+        return await handleStats(env);
       }
 
       return jsonResponse({ error: "Not found" }, 404);
@@ -30,81 +29,185 @@ export default {
   }
 };
 
-const igCache = new Map();
-async function handleInstagram(username) {
-  if (!username) {
-    return jsonResponse({ error: "Missing username" }, 400);
-  }
-
-  const cached = igCache.get(username);
-  if (cached && Date.now() - cached.time < 600000) {
-    return jsonResponse(cached.data);
-  }
-
+async function handleStats(env) {
   try {
-    const res = await fetch(`https://www.instagram.com/${username}/`, {
-      headers: {
-        "User-Agent": getRandomUA(),
-        "Accept": "text/html",
-        "Accept-Language": "en-US,en;q=0.9"
-      }
-    });
+    const [ig, yt] = await Promise.all([
+      getIGStats(env),
+      getYouTubeStats(env)
+    ]);
 
-    const html = await res.text();
-
-    // 🔍 hlavný regex (funguje najčastejšie)
-    let match = html.match(/"edge_followed_by":{"count":(\d+)}/);
-    
-    if (!match) {
-      match = html.match(/"followers":\s?(\d+)/);
-    }
-    
-    // 🔥 nový fallback (dôležitý)
-    if (!match) {
-      const jsonMatch = html.match(/<script type="application\/json">(.+?)<\/script>/);
-      
-      if (jsonMatch && jsonMatch[1]) {
-        try {
-          const json = JSON.parse(jsonMatch[1]);
-          const followers = json?.entry_data?.ProfilePage?.[0]?.graphql?.user?.edge_followed_by?.count;
-          
-          if (followers) {
-            match = [null, followers];
-          }
-        } catch {}
-      }
-    }
-
-    if (!match || !match[1]) {
-      return jsonResponse({
-        error: "Followers not found"
-      }, 500);
-    }
-
-    const followers = parseInt(String(match[1]).replace(/\D/g, ""));
-
-    const result = {
-      username,
-      followers,
-      source: "html"
-    };
-
-    igCache.set(username, {
-      data: result,
-      time: Date.now()
-    });
-
-    return jsonResponse(result);
+  return jsonResponse({
+    instagram: ig?.error ? null : ig,
+    instagram_error: ig?.error || null,
+    youtube: yt?.error ? null : yt,
+    youtube_error: yt?.error || null
+  });
 
   } catch (e) {
     return jsonResponse({
-      error: e.message || "IG scrape error"
+      error: e.message || "Stats error"
     }, 500);
   }
 }
 
-function getRandomUA() {
-  return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36";
+async function getYouTubeStats(env) {
+  const KEY = env.YOUTUBE_API_KEY;
+  const CHANNEL = env.YOUTUBE_CHANNEL_ID;
+
+  // 1. subscribers
+  const channel = await fetch(
+    `https://www.googleapis.com/youtube/v3/channels?part=statistics&id=${CHANNEL}&key=${KEY}`
+  ).then(r => r.json());
+  if (channel.error) {
+    throw new Error(channel.error.message);
+  }
+  const subscribers =
+    parseInt(channel.items?.[0]?.statistics?.subscriberCount || "0");
+
+  // 2. latest videos
+  const search = await fetch(
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CHANNEL}&order=date&maxResults=10&type=video&key=${KEY}`
+  ).then(r => r.json());
+
+  const ids = search.items
+    ?.map(v => v.id.videoId)
+    ?.filter(Boolean);
+
+  if (!ids?.length) {
+    return { subscribers, last_video_views: null };
+  }
+
+  // 3. video details
+  const videos = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,statistics&id=${ids.join(",")}&key=${KEY}`
+  ).then(r => r.json());
+
+  let lastViews = null;
+  const videoMap = Object.fromEntries(
+    videos.items.map(v => [v.id, v])
+  );
+  
+  for (const id of ids) {
+    const v = videoMap[id];
+    const duration = v.contentDetails.duration;
+    const seconds = parseDuration(duration);
+  
+    if (seconds >= 60) {
+      lastViews = parseInt(v.statistics.viewCount || "0");
+      break;
+    }
+  }
+  
+  return {
+    subscribers,
+    last_video_views: lastViews
+  };
+}
+
+function parseDuration(iso) {
+  const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+
+  const h = parseInt(match?.[1] || 0);
+  const m = parseInt(match?.[2] || 0);
+  const s = parseInt(match?.[3] || 0);
+
+  return h * 3600 + m * 60 + s;
+}
+
+async function getIGStats(env) {
+  const IG_ID = env.IG_ID;
+  const TOKEN = env.FB_PAGE_TOKEN;
+
+  if (!IG_ID || !TOKEN) {
+    throw new Error("Missing IG config");
+  }
+  
+  try {
+    // 1. followers
+    const profile = await fetch(
+      `https://graph.facebook.com/v19.0/${IG_ID}?fields=followers_count&access_token=${TOKEN}`
+    ).then(r => r.json());
+    
+    if (profile.error) {
+      throw new Error(profile.error.message);
+    }
+    // 2. last post
+    const media = await fetch(
+      `https://graph.facebook.com/v19.0/${IG_ID}/media?fields=id,media_type&limit=1&access_token=${TOKEN}`
+    ).then(r => r.json());
+    
+    if (media.error) throw new Error(media.error.message);
+    
+    const mediaId = media.data?.[0]?.id;
+    const mediaType = media.data?.[0]?.media_type;
+
+    if (!mediaId) {
+      throw new Error("No media found");
+    }
+    // 3. likes
+    const likesRes = await fetch(
+      `https://graph.facebook.com/v19.0/${mediaId}?fields=like_count&access_token=${TOKEN}`
+    ).then(r => r.json());
+    if (likesRes.error) throw new Error(likesRes.error.message);
+
+    let views = null;
+
+    // 4. views (len video/reel)
+    if (mediaType === "VIDEO" || mediaType === "REEL") {
+      try {
+        const viewsRes = await fetch(
+          `https://graph.facebook.com/v19.0/${mediaId}/insights?metric=plays&access_token=${TOKEN}`
+        ).then(r => r.json());
+
+        views = viewsRes.data?.[0]?.values?.[0]?.value ?? null;
+      } catch {}
+    }
+
+    // 5. reach
+    const reachRes = await fetch(
+      `https://graph.facebook.com/v19.0/${IG_ID}/insights?metric=reach&period=day&access_token=${TOKEN}`
+    ).then(r => r.json());
+    if (reachRes.error) throw new Error(reachRes.error.message);
+
+    const values = reachRes.data?.[0]?.values || [];
+        
+    const todayUTC = new Date().toISOString().slice(0, 10);
+    
+    const yesterday = getLocalDateString(-1);
+    
+    const yesterdayReach = values.find(v => {
+      const d = new Date(v.end_time)
+        .toLocaleString("en-US", { timeZone: "Europe/Bratislava" });
+    
+      const localDate = new Date(d).toISOString().slice(0, 10);
+    
+      return localDate === yesterday;
+    })?.value ?? null;
+    
+    return jsonResponse({
+      followers: profile.followers_count,
+      last_post: {
+        likes: likesRes.like_count,
+        views
+      },
+      yesterday_reach: yesterdayReach
+    });
+
+  } catch (e) {
+    throw new Error(e.message || "IG API error");
+  }
+}
+
+function getLocalDateString(offsetDays = 0) {
+  const now = new Date();
+
+  const local = new Date(
+    now.toLocaleString("en-US", { timeZone: "Europe/Bratislava" })
+  );
+
+  local.setDate(local.getDate() + offsetDays);
+
+  return local.toISOString().slice(0, 10);
 }
 
 async function handleAsk(request, env) {
@@ -121,6 +224,10 @@ async function handleAsk(request, env) {
 async function handleVoice(request, env) {
   const formData = await request.formData();
   const file = formData.get("file");
+  if (!file || typeof file === "string") {
+    return jsonResponse({ error: "Missing audio file" }, 400);
+  }
+  
   if (file.size > 10 * 1024 * 1024) {
     return jsonResponse({ error: "Audio file too large" }, 413);
   }

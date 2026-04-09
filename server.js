@@ -6,7 +6,11 @@ export default {
 
     try {
       const url = new URL(request.url);
-
+      if (!env.KV) {
+        return new Response(JSON.stringify({ error: "KV not configured" }), {
+          status: 500
+        });
+      }
       if (url.pathname === "/ask" && request.method === "POST") {
         return await handleAsk(request, env);
       }

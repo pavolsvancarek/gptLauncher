@@ -125,7 +125,7 @@ async function getIGStats(env) {
   try {
     // 1. followers
     const profile = await fetch(
-      `https://graph.facebook.com/v19.0/${IG_ID}?fields=followers_count&access_token=${TOKEN}`
+      `https://graph.facebook.com/v25.0/${IG_ID}?fields=followers_count&access_token=${TOKEN}`
     ).then(r => r.json());
       console.log("Profile:", JSON.stringify(profile, null, 2));
 
@@ -134,7 +134,7 @@ async function getIGStats(env) {
     }
     // 2. last post
     const media = await fetch(
-      `https://graph.facebook.com/v19.0/${IG_ID}/media?fields=id,media_type&limit=1&access_token=${TOKEN}`
+      `https://graph.facebook.com/v25.0/${IG_ID}/media?fields=id,media_type&limit=1&access_token=${TOKEN}`
     ).then(r => r.json());
     console.log("IG media:", JSON.stringify(media, null, 2));
     if (media.error) throw new Error(media.error.message);
@@ -147,7 +147,7 @@ async function getIGStats(env) {
     }
     // 3. likes
     const likesRes = await fetch(
-      `https://graph.facebook.com/v19.0/${mediaId}?fields=like_count&access_token=${TOKEN}`
+      `https://graph.facebook.com/v25.0/${mediaId}?fields=like_count&access_token=${TOKEN}`
     ).then(r => r.json());
     if (likesRes.error) throw new Error(likesRes.error.message);
     console.log("IG likes:", JSON.stringify(likesRes, null, 2));
@@ -157,7 +157,7 @@ async function getIGStats(env) {
     if (mediaType === "VIDEO" || mediaType === "REEL") {
       try {
         const viewsRes = await fetch(
-          `https://graph.facebook.com/v19.0/${mediaId}/insights?metric=plays&access_token=${TOKEN}`
+          `https://graph.facebook.com/v25.0/${mediaId}/insights?metric=views&access_token=${TOKEN}`
         ).then(r => r.json());
         console.log("IG views:", JSON.stringify(viewsRes, null, 2));
         views = viewsRes.data?.[0]?.values?.[0]?.value ?? null;
@@ -166,7 +166,7 @@ async function getIGStats(env) {
 
     // 5. reach
     const reachRes = await fetch(
-      `https://graph.facebook.com/v19.0/${IG_ID}/insights?metric=reach&period=day&access_token=${TOKEN}`
+      `https://graph.facebook.com/v25.0/${IG_ID}/insights?metric=reach&period=day&access_token=${TOKEN}`
     ).then(r => r.json());
     if (reachRes.error) throw new Error(reachRes.error.message);
     console.log("IG reach:", JSON.stringify(reachRes, null, 2));

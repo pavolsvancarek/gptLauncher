@@ -33,33 +33,36 @@ export default {
 };
 
 async function handleStats(env) {
-  try {
-    const [ig, yt, weather] = await Promise.allSettled([
-      getIGStats(env),
-      getYouTubeStats(env),
-      getWeather()
-    ]);
-    const data = {};
-    
-    if (ig && !ig.error) data.instagram = ig;
-    if (yt && !yt.error) data.youtube = yt;
-    if (weather) data.weather = weather;
+  const results = await Promise.allSettled([
+    getIGStats(env),
+    getYouTubeStats(env),
+    getWeather()
+  ]);
 
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Cache-Control": "public, max-age=900"
-      }
+  const [ig, yt, weather] = results;
+
+  // ak hociktorý failne → 500
+  if (
+    ig.status === "rejected" ||
+    yt.status === "rejected" ||
+    weather.status === "rejected"
+  ) {
+    return new Response(JSON.stringify({ error: "Stats failed" }), {
+      status: 500
     });
-
-  } catch (e) {
-    return jsonResponse({
-      error: e.message || "Stats error"
-    }, 500);
   }
+
+  return new Response(JSON.stringify({
+    instagram: ig.value,
+    youtube: yt.value,
+    weather: weather.value
+  }), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "public, max-age=900"
+    }
+  });
 }
 
 async function getWeather() {

@@ -59,8 +59,35 @@ async function updateStats(env) {
     return;
   }
 
+  // 🧠 dnešný dátum (Bratislava)
+  const today = getLocalDateString(0);
+
+  // 📦 načítaj meta (baseline)
+  const meta = await env.KV.get("meta", { type: "json" }) || {};
+
+  let followersStart = meta.followers_start_of_day;
+  let storedDate = meta.date;
+
+  // 🔁 nový deň → reset baseline
+  if (storedDate !== today) {
+    followersStart = ig.value.followers;
+
+    await env.KV.put("meta", JSON.stringify({
+      date: today,
+      followers_start_of_day: followersStart
+    }));
+
+    console.log("NEW DAY → baseline reset");
+  }
+
+  // 📈 growth výpočet
+  const growth = ig.value.followers - (followersStart || ig.value.followers);
+
   const data = {
-    instagram: ig.value,
+    instagram: {
+      ...ig.value,
+      followers_growth: growth
+    },
     youtube: yt.value,
     weather: weather.value,
     updated_at: Date.now()
@@ -69,6 +96,14 @@ async function updateStats(env) {
   await env.KV.put("stats", JSON.stringify(data));
 
   console.log("STATS SAVED");
+}
+
+
+function getTodayDate() {
+  const now = new Date().toLocaleString("en-US", {
+    timeZone: "Europe/Bratislava"
+  });
+  return new Date(now).toISOString().slice(0, 10);
 }
 
 async function handleStats(env) {

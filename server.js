@@ -36,12 +36,10 @@ async function handleStats(env) {
       getYouTubeStats(env)
     ]);
 
-  return jsonResponse({
-    instagram: ig?.error ? null : ig,
-    instagram_error: ig?.error || null,
-    youtube: yt?.error ? null : yt,
-    youtube_error: yt?.error || null
-  });
+    return jsonResponse({
+      instagram: ig,
+      youtube: yt
+    });
 
   } catch (e) {
     return jsonResponse({

@@ -4,9 +4,6 @@ export default {
       return jsonResponse({}, 200);
     }
 
-
-
-    
     try {
       const url = new URL(request.url);
 
@@ -29,10 +26,17 @@ export default {
         type: "server_error"
       }, 500);
     }
+  },
+
+  async scheduled(event, env, ctx) {
+    console.log("CRON TRIGGERED");
+    await updateStats(env);
   }
 };
 
-async function handleStats(env) {
+async function updateStats(env) {
+  console.log("Updating stats...");
+
   const results = await Promise.allSettled([
     getIGStats(env),
     getYouTubeStats(env),
@@ -41,26 +45,41 @@ async function handleStats(env) {
 
   const [ig, yt, weather] = results;
 
-  // ak hociktorý failne → 500
   if (
-    ig.status === "rejected" ||
-    yt.status === "rejected" ||
-    weather.status === "rejected"
+    ig.status !== "fulfilled" ||
+    yt.status !== "fulfilled" ||
+    weather.status !== "fulfilled"
   ) {
-    return new Response(JSON.stringify({ error: "Stats failed" }), {
+    console.log("CRON FAIL");
+    return;
+  }
+
+  const data = {
+    instagram: ig.value,
+    youtube: yt.value,
+    weather: weather.value,
+    updated_at: Date.now()
+  };
+
+  await env.KV.put("stats", JSON.stringify(data));
+
+  console.log("STATS SAVED");
+}
+
+async function handleStats(env) {
+  const cached = await env.KV.get("stats");
+
+  if (!cached) {
+    return new Response(JSON.stringify({ error: "No data yet" }), {
       status: 500
     });
   }
 
-  return new Response(JSON.stringify({
-    instagram: ig.value,
-    youtube: yt.value,
-    weather: weather.value
-  }), {
+  return new Response(cached, {
     status: 200,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=900"
+      "Cache-Control": "public, max-age=60"
     }
   });
 }

@@ -32,21 +32,26 @@ export default {
 
 async function handleStats(env) {
   try {
-    const [ig, yt, weather] = await Promise.all([
+    const [ig, yt, weather] = await Promise.allSettled([
       getIGStats(env),
       getYouTubeStats(env),
       getWeather()
     ]);
+    const data = {};
+    
+    if (ig && !ig.error) data.instagram = ig;
+    if (yt && !yt.error) data.youtube = yt;
+    if (weather) data.weather = weather;
 
     return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Cache-Control": "public, max-age=900"
-    }
-  });
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Cache-Control": "public, max-age=900"
+      }
+    });
 
   } catch (e) {
     return jsonResponse({

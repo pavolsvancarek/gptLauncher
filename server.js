@@ -4,6 +4,7 @@ export default {
       return jsonResponse({}, 200);
     }
 
+    
     try {
       const url = new URL(request.url);
 

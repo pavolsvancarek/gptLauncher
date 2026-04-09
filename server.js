@@ -66,29 +66,47 @@ async function updateStats(env) {
   const meta = await env.KV.get("meta", { type: "json" }) || {};
 
   let followersStart = meta.followers_start_of_day;
+  let ytStart = meta.yt_start_of_day;
+
+  if (!followersStart) {
+  followersStart = ig.value.followers;
+}
+
+if (!ytStart) {
+  ytStart = yt.value.subscribers;
+}
+
   let storedDate = meta.date;
 
   // 🔁 nový deň → reset baseline
   if (storedDate !== today) {
     followersStart = ig.value.followers;
+    ytStart = yt.value.subscribers;
 
     await env.KV.put("meta", JSON.stringify({
       date: today,
-      followers_start_of_day: followersStart
+      followers_start_of_day: followersStart,
+      yt_start_of_day: ytStart
     }));
 
     console.log("NEW DAY → baseline reset");
   }
 
   // 📈 growth výpočet
-  const growth = ig.value.followers - (followersStart || ig.value.followers);
-
+  const igGrowth = followersStart
+    ? ig.value.followers - followersStart
+    : 0;
+  
+  const ytGrowth = ytStart
+  ? yt.value.subscribers - ytStart
+  : 0;
+  
+  const totalGrowth = igGrowth + ytGrowth;
+  
   const data = {
-    instagram: {
-      ...ig.value,
-      followers_growth: growth
-    },
+    instagram: ig.value,
     youtube: yt.value,
+    total_growth: totalGrowth,
     weather: weather.value,
     updated_at: Date.now()
   };

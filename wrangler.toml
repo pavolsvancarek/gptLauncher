@@ -17,3 +17,7 @@ invocation_logs = true
 enabled = false
 persist = true
 head_sampling_rate = 1
+
+kv_namespaces = [
+  { binding = "KV", id = "c7ff9b73ed3a4e8f965d360dae52d06c" }
+]

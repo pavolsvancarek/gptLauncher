@@ -185,14 +185,14 @@ async function getIGStats(env) {
       return localDate === yesterday;
     })?.value ?? null;
     
-    return jsonResponse({
+    return {
       followers: profile.followers_count,
       last_post: {
         likes: likesRes.like_count,
         views
       },
       yesterday_reach: yesterdayReach
-    });
+    };
 
   } catch (e) {
     throw new Error(e.message || "IG API error");

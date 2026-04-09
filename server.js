@@ -31,21 +31,93 @@ export default {
 
 async function handleStats(env) {
   try {
-    const [ig, yt] = await Promise.all([
+    const [ig, yt, weather] = await Promise.all([
       getIGStats(env),
-      getYouTubeStats(env)
+      getYouTubeStats(env),
+      getWeather()
     ]);
 
-    return jsonResponse({
-      instagram: ig,
-      youtube: yt
-    });
+    return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Cache-Control": "public, max-age=900"
+    }
+  });
 
   } catch (e) {
     return jsonResponse({
       error: e.message || "Stats error"
     }, 500);
   }
+}
+
+async function getWeather() {
+  const res = await fetch(
+    "https://api.open-meteo.com/v1/forecast?latitude=48.9251&longitude=18.0692&hourly=temperature_2m,weathercode&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunset&forecast_days=3&timezone=auto"
+  );
+
+  const obj = await res.json();
+
+  const temps = obj.hourly.temperature_2m;
+  const codes = obj.hourly.weathercode;
+  const times = obj.hourly.time;
+
+  const currentIndex = getClosestHourIndex(times);
+
+  const forecast = [];
+
+  [0, 3, 6, 9].forEach(offset => {
+    const i = currentIndex + offset;
+
+    if (i < temps.length) {
+      forecast.push({
+        temp: Math.round(temps[i]),
+        icon: mapWeather(codes[i])
+      });
+    }
+  });
+
+  const daily = obj.daily;
+
+  const dailyList = [1, 2].map(i =>
+    `${Math.round(daily.temperature_2m_max[i])}/${Math.round(daily.temperature_2m_min[i])}° ${daily.precipitation_probability_max[i]}%`
+  );
+
+  const sunset = daily.sunset.map(s => s.split("T")[1]);
+
+  return {
+    weatherNow: forecast,
+    weatherDaily: dailyList,
+    sunset
+  };
+}
+
+function getClosestHourIndex(times) {
+  const now = new Date();
+
+  let closest = 0;
+  let minDiff = Infinity;
+
+  times.forEach((t, i) => {
+    const diff = Math.abs(new Date(t) - now);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = i;
+    }
+  });
+
+  return closest;
+}
+
+function mapWeather(code) {
+  if (code === 0) return "sun";
+  if (code <= 3) return "cloud";
+  if (code < 60) return "fog";
+  if (code < 70) return "rain";
+  return "storm";
 }
 
 async function getYouTubeStats(env) {

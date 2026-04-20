@@ -224,7 +224,7 @@ async function getYouTubeStats(env) {
 
   // 2. latest videos
   const search = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CHANNEL}&order=date&maxResults=10&type=video&key=${KEY}`
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CHANNEL}&order=date&maxResults=50&type=video&key=${KEY}`
   ).then(r => r.json());
 
   const ids = search.items

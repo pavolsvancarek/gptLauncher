@@ -7,11 +7,15 @@ export default {
     
     try {
       const url = new URL(request.url);
+      if (url.pathname === "/debug-update-stats" && request.method === "GET") {
+        return await handleDebugUpdateStats(env);
+      }
       if (!env.KV) {
         return new Response(JSON.stringify({ error: "KV not configured" }), {
           status: 500
         });
-      }
+      } 
+      
       if (url.pathname === "/ask" && request.method === "POST") {
         return await handleAsk(request, env);
       }
@@ -38,6 +42,104 @@ export default {
     await updateStats(env);
   }
 };
+
+async function handleDebugUpdateStats(env) {
+  const debug = {
+    ok: true,
+    kv: {
+      hasBinding: !!env.KV,
+      testWriteOk: false,
+      testReadOk: false,
+      testValue: null,
+      statsExists: false,
+      statsPreview: null,
+      error: null
+    },
+    ig: null,
+    yt: null,
+    weather: null,
+    generatedAt: new Date().toISOString()
+  };
+
+  try {
+    if (!env.KV) {
+      debug.ok = false;
+      debug.kv.error = "KV binding missing";
+
+      return jsonResponse(debug, 500);
+    }
+
+    const testValue = `ok ${Date.now()}`;
+
+    await env.KV.put("debug_kv_test", testValue);
+
+    const readBack = await env.KV.get("debug_kv_test");
+    const stats = await env.KV.get("stats");
+
+    debug.kv.testWriteOk = true;
+    debug.kv.testReadOk = readBack === testValue;
+    debug.kv.testValue = readBack;
+    debug.kv.statsExists = !!stats;
+    debug.kv.statsPreview = stats ? stats.slice(0, 300) : null;
+  } catch (e) {
+    debug.ok = false;
+    debug.kv.error = String(e?.message || e);
+
+    return jsonResponse(debug, 500);
+  }
+
+  try {
+    const results = await Promise.allSettled([
+      getIGStats(env),
+      getYouTubeStats(env),
+      getWeather()
+    ]);
+
+    const [ig, yt, weather] = results;
+
+    debug.ig = {
+      status: ig.status,
+      value: ig.status === "fulfilled" ? ig.value : null,
+      error: ig.status === "rejected"
+          ? String(ig.reason?.message || ig.reason)
+          : null
+    };
+
+    debug.yt = {
+      status: yt.status,
+      value: yt.status === "fulfilled" ? yt.value : null,
+      error: yt.status === "rejected"
+          ? String(yt.reason?.message || yt.reason)
+          : null
+    };
+
+    debug.weather = {
+      status: weather.status,
+      value: weather.status === "fulfilled" ? weather.value : null,
+      error: weather.status === "rejected"
+          ? String(weather.reason?.message || weather.reason)
+          : null
+    };
+
+    if (
+      ig.status !== "fulfilled" ||
+      yt.status !== "fulfilled" ||
+      weather.status !== "fulfilled"
+    ) {
+      debug.ok = false;
+    }
+
+    return jsonResponse(debug, debug.ok ? 200 : 500);
+  } catch (e) {
+    debug.ok = false;
+
+    return jsonResponse({
+      ...debug,
+      error: String(e?.message || e),
+      generatedAt: new Date().toISOString()
+    }, 500);
+  }
+}
 
 async function updateStats(env) {
   console.log("Updating stats...");

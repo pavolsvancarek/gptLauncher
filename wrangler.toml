@@ -3,6 +3,9 @@ main = "server.js"
 compatibility_date = "2024-01-01"
 account_id = "47d96e6d04207519d2d6e98720aa49bd"
 
+[triggers]
+crons = ["*/15 * * * *"]
+
 [observability]
 enabled = false
 head_sampling_rate = 1

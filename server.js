@@ -56,6 +56,11 @@ async function updateStats(env) {
     weather.status !== "fulfilled"
   ) {
     console.log("CRON FAIL");
+  
+    console.log("IG:", ig.status, ig.reason?.message || ig.reason);
+    console.log("YT:", yt.status, yt.reason?.message || yt.reason);
+    console.log("WEATHER:", weather.status, weather.reason?.message || weather.reason);
+  
     return;
   }
 
